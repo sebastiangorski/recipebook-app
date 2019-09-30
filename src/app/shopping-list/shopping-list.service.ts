@@ -5,7 +5,7 @@ import { Ingredient } from '../shared/ingredient.model';
 
 export class ShoppingListService {
   ingredientsChanged = new Subject<Ingredient[]>();
-  startedEditing = new Subject<number>();
+  startedEditing = new Subject<number>(); // Stores index of ingredient on the list which we clicked on
 
   private ingredients: Ingredient[] = [
     new Ingredient('Apples', 5),

@@ -25,20 +25,16 @@ export class DataStorageService {
   // After the obseravle chain switches to http observable, and since we already are in pipe method call we can simply add more methods as next steps after the exhaust map
   // In the end we return this whole observable
 
-  return this.authService.user.pipe(take(1), exhaustMap(user => {
-      return this.http.get<Recipe[]>('https://angular-recipebook-sg.firebaseio.com/recipes.json',
-        {
-        // For Firebase and Real Time Database REST API we add a token as a query param in the URL. For other APIs you add it as a header in the request.
-          params: new HttpParams().set('auth', user.token)
-        }
-      );
-   }), map(recipes => { // RXJS operator
-    return recipes.map(recipe => { // Called on an array - so normal JS array method to transform elements in the array
-      return {...recipe, ingredients: recipe.ingredients ? recipe.ingredients : []};
+
+  return this.http.get<Recipe[]>('https://angular-recipebook-sg.firebaseio.com/recipes.json')
+  .pipe(
+    map(recipes => { // RXJS operator
+      return recipes.map(recipe => { // Called on an array - so normal JS array method to transform elements in the array
+        return {...recipe, ingredients: recipe.ingredients ? recipe.ingredients : []};
       // Spread to copy all existing data, then if there are set ingredients then set it equal to recipe ingredients, BUT if tere are no ingredients set then set an empty array
     });
   }), tap(recipes => {
-    this.recipeService.setRecipes(recipes);
+  this.recipeService.setRecipes(recipes);
   }));
- }
+  }
 }

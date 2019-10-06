@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { catchError } from 'rxjs/operators';
-import { throwError } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
+import { throwError, Subject } from 'rxjs';
+import { User } from './user.model';
 
 export interface AuthResponseData {
   kind: string;
@@ -15,6 +16,7 @@ export interface AuthResponseData {
 
 @Injectable({providedIn: 'root'})
 export class AuthService {
+  user = new Subject<User>();
 
   constructor(private http: HttpClient) {}
 
@@ -26,7 +28,9 @@ export class AuthService {
         password: password,
         returnSecureToken: true // Required by Firebase API, always true
       }
-    ).pipe(catchError(this.handleError));
+    ).pipe(catchError(this.handleError), tap(resData => { // Tap allows us to perform some action without changing the response
+        this.handleAuthentication(resData.email, resData.localId, resData.idToken, +resData.expiresIn);
+    }));
   }
 
   logIn(email: string, password: string) {
@@ -37,7 +41,17 @@ export class AuthService {
         password: password,
         returnSecureToken: true
       }
-    ).pipe(catchError(this.handleError));
+    ).pipe(catchError(this.handleError), tap(resData => { // Tap allows us to perform some action without changing the response
+      this.handleAuthentication(resData.email, resData.localId, resData.idToken, +resData.expiresIn);
+    }));
+  }
+
+  // Handling user authentication
+  private handleAuthentication(email: string, userId: string, token: string, expiresIn: number) {
+    const expirationDate = new Date(new Date().getTime() + expiresIn * 1000); // Because current time is in milisec so we need to * token expiration by 1000. Wrapping all that in another new Date will convert it to a concrete time stamp which is a date object form.
+
+    const user = new User(email, userId, token, expirationDate);
+    this.user.next(user); // Emit to the subject as our currently logged in user
   }
 
   // Handling error messages

@@ -14,7 +14,7 @@ export class AuthInterceptorService implements HttpInterceptor {
 
   intercept(req: HttpRequest<any>, next: HttpHandler) {
     return this.authService.user.pipe(take(1), exhaustMap(user => {
-      if (!user) { // Check if we have a user
+      if (!user) { // Check if we don't have a user
         return next.handle(req);
       } // Only add token if we have a user
       const modifiedReq = req.clone({params: new HttpParams().set('auth', user.token)});

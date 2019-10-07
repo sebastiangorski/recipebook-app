@@ -18,6 +18,7 @@ export interface AuthResponseData {
 @Injectable({providedIn: 'root'})
 export class AuthService {
   user = new BehaviorSubject<User>(null);
+  private tokenExpirationTimer: any;
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -47,9 +48,42 @@ export class AuthService {
     }));
   }
 
+  autoLogin() {
+    const userData:
+      {
+        email: string
+        id: string
+        _token: string
+        _tokenExpirationDate: string
+      } = JSON.parse(localStorage.getItem('userData')); // Check if there is an existing user snapchot in local storage - convert it back to JS object
+    if (!userData) {
+      return;
+    }
+
+    const loadedUser = new User(userData.email, userData.id, userData._token, new Date(userData._tokenExpirationDate));
+
+    if (loadedUser.token) { // Check if token is still valid
+      this.user.next(loadedUser);
+      const expirationDuration = new Date(userData._tokenExpirationDate).getTime() - new Date().getTime();
+      // Future date - current date = difference in milisecond, which is a duration until token expires
+      this.autoLogout(expirationDuration);
+    }
+  }
+
   logOut() {
     this.user.next(null);
     this.router.navigate(['/auth']);
+    localStorage.removeItem('userData');
+    if (this.tokenExpirationTimer) {
+      clearTimeout(this.tokenExpirationTimer);
+    }
+    this.tokenExpirationTimer = null;
+  }
+
+  autoLogout(expirationDuration: number) {
+    this.tokenExpirationTimer = setTimeout(() => {
+      this.logOut();
+    }, expirationDuration);
   }
 
   // Handling user authentication
@@ -58,6 +92,8 @@ export class AuthService {
 
     const user = new User(email, userId, token, expirationDate);
     this.user.next(user); // Emit to the subject as our currently logged in user
+    this.autoLogout(expiresIn * 1000); // Amount in miliseconds
+    localStorage.setItem('userData', JSON.stringify(user)); // Store token in browser local storage, first convert it to string
   }
 
   // Handling error messages

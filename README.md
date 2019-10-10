@@ -1,3 +1,3 @@
-# RecipesApp
+# RecipesApp - NgRx Branch
 
-This project was build with Angular 8, it is a recipe managing app that let's you fetch and save recipes from the database, manage them and also add recipes ingredients to the shopping list.
+The NgRx branch of this project contains modified files, where state managment of the app was moved from Services to NgRx. That's why, this branch doesn't contain services files like on master branch. Instead, the app uses Store and reducers + actions for its components.

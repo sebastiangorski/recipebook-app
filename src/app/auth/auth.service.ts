@@ -2,9 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { catchError, tap } from 'rxjs/operators';
 import { throwError, BehaviorSubject } from 'rxjs';
-import { User } from './user.model';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
+import { Store } from '@ngrx/store';
+
+import { User } from './user.model';
+import * as fromApp from '../store/app.reducer';
+import * as AuthActions from './store/auth.actions';
 
 export interface AuthResponseData {
   kind: string;
@@ -18,10 +22,11 @@ export interface AuthResponseData {
 
 @Injectable({providedIn: 'root'})
 export class AuthService {
-  user = new BehaviorSubject<User>(null);
+
+
   private tokenExpirationTimer: any;
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router, private store: Store<fromApp.AppState>) {}
 
   signUp(email: string, password: string) {
     return this.http.post<AuthResponseData>(
@@ -64,7 +69,15 @@ export class AuthService {
     const loadedUser = new User(userData.email, userData.id, userData._token, new Date(userData._tokenExpirationDate));
 
     if (loadedUser.token) { // Check if token is still valid
-      this.user.next(loadedUser);
+      this.store.dispatch(
+        new AuthActions.Login({
+          email: loadedUser.email,
+          userId: loadedUser.id,
+          token: loadedUser.token,
+          expirationDate: new Date(userData._tokenExpirationDate)
+        })
+      );
+
       const expirationDuration = new Date(userData._tokenExpirationDate).getTime() - new Date().getTime();
       // Future date - current date = difference in milisecond, which is a duration until token expires
       this.autoLogout(expirationDuration);
@@ -72,7 +85,8 @@ export class AuthService {
   }
 
   logOut() {
-    this.user.next(null);
+    this.store.dispatch(new AuthActions.Logout());
+
     this.router.navigate(['/auth']);
     localStorage.removeItem('userData');
     if (this.tokenExpirationTimer) {
@@ -92,7 +106,16 @@ export class AuthService {
     const expirationDate = new Date(new Date().getTime() + expiresIn * 1000); // Because current time is in milisec so we need to * token expiration by 1000. Wrapping all that in another new Date will convert it to a concrete time stamp which is a date object form.
 
     const user = new User(email, userId, token, expirationDate);
-    this.user.next(user); // Emit to the subject as our currently logged in user
+
+    this.store.dispatch(
+      new AuthActions.Login({
+        email: email,
+        userId: userId,
+        token: token,
+        expirationDate: expirationDate
+      })
+    );
+
     this.autoLogout(expiresIn * 1000); // Amount in miliseconds
     localStorage.setItem('userData', JSON.stringify(user)); // Store token in browser local storage, first convert it to string
   }
